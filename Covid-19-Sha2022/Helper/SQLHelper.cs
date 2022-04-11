@@ -9,13 +9,14 @@ namespace Covid_19_Sha2022.Helper
 {
     public class SQLHelper
     {
+        string strSqlConn = @"server=.\sql2017;database=Covid19_SHA;Trusted_Connection=SSPI";
         public SQLHelper()
         {
         }
 
         public int ExecuteNonQuery(string strSql)
         {
-            using SqlConnection conn = new SqlConnection("server=.;database=Covid19_SHA;Trusted_Connection=SSPI");
+            using SqlConnection conn = new SqlConnection(strSqlConn);
             using (SqlCommand comm = conn.CreateCommand())
             {
                 conn.Open();
@@ -32,7 +33,7 @@ namespace Covid_19_Sha2022.Helper
 
         public DataSet ExecuteDataset(string strSql)
         {
-            using (SqlConnection conn = new SqlConnection("server=.;database=Covid19_SHA;Trusted_Connection=SSPI"))
+            using (SqlConnection conn = new SqlConnection(strSqlConn))
             {
                 using (SqlCommand comm = conn.CreateCommand())
                 {

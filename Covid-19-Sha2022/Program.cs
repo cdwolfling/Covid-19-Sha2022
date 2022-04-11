@@ -96,7 +96,7 @@ namespace Covid_19_Sha2022
                 tempTitle = HtmlHelper.GetMidString(news, " title='", "'", false);
                 lstNews.Add(tempHref + "    " + tempTitle);
 
-                strSql = String.Format("exec dbo.uspInsertNews '{0}','{1}'", tempHref, tempTitle);
+                strSql = String.Format("exec dbo.uspInsertNews N'{0}',N'{1}'", tempHref, tempTitle);
                 sqlserver.ExecuteNonQuery(strSql);
             }
         }
@@ -132,12 +132,12 @@ namespace Covid_19_Sha2022
                             tempStreet = tempStreet.Substring(0, tempStreet.Length - 1);
                         }
 
-                        strSql = String.Format("exec dbo.uspInsertPositiveArea '{0}','{1}','{2}'", strUrl, tempDistrict, tempStreet);
+                        strSql = String.Format("exec dbo.uspInsertPositiveArea N'{0}',N'{1}',N'{2}'", strUrl, tempDistrict, tempStreet);
                         sqlserver.ExecuteNonQuery(strSql);
                     }
                 }
             }
-            strSql = String.Format("update t set Recorded = 1 from tNews t where Href = '{0}'", strUrl);
+            strSql = String.Format("update t set Recorded = 1 from tNews t where Href = N'{0}'", strUrl);
             sqlserver.ExecuteNonQuery(strSql);
         }
 
