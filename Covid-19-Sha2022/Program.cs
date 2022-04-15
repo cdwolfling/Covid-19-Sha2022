@@ -1,4 +1,5 @@
 ﻿using Covid_19_Sha2022.Helper;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -18,8 +19,14 @@ namespace Covid_19_Sha2022
         static SQLHelper sqlserver = new SQLHelper();
         static string strSql = "";
 
+
         static void Main(string[] args)
         {
+
+            IConfigurationBuilder builder = new ConfigurationBuilder().AddJsonFile("appsettings.json", false, true);
+            IConfigurationRoot root = builder.Build();
+            sqlserver.strSqlConn = root["SQLConn"];
+
             string strUrl;
 
             //strUrl = string.Format("https://mp.weixin.qq.com/s/72SXJPIJmO0Go5ZOARuv6A");
