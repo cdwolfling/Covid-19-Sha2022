@@ -9,39 +9,42 @@ namespace Covid_19_Sha2022
 {
     internal class Program
     {
-        static CookieContainer frmcookie = new CookieContainer();
+        static string Wechat_Site = "https://mp.weixin.qq.com/";
+        static string WSJKW_Site = "https://wsjkw.sh.gov.cn";
+        static string PositiveArea_Homepage= "https://wsjkw.sh.gov.cn/xwfb/index.html";
+
         static HttpHelper httpHelper = new HttpHelper();
-        static string strReferer = "";
-        static string strHost = "https://wsjkw.sh.gov.cn";
-        static string strSql = "";
-        static string frmsessionid = string.Empty;
+        static CookieContainer frmcookie = new CookieContainer();
         static SQLHelper sqlserver = new SQLHelper();
+        static string strSql = "";
 
         static void Main(string[] args)
         {
-            string frmsessionid = string.Empty;
-            SQLHelper sqlserver = new SQLHelper();
-
             string strUrl;
-            bool isFirstRun = CheckIsFirstRun();
-            if (isFirstRun)
+
+            //strUrl = string.Format("https://mp.weixin.qq.com/s/72SXJPIJmO0Go5ZOARuv6A");
+            //strUrl = string.Format("https://mp.weixin.qq.com/s/CVeBcXgkuPA8HKslTO3u5A");
+            //Scan3Zones(strUrl);
+            //return;
+
+            //Scan News
+            if (CheckIsFirstRun())
             {
-                strUrl = string.Format("https://wsjkw.sh.gov.cn/xwfb/index.html");
+                strUrl = string.Format(PositiveArea_Homepage);
                 ScanNews(strUrl);
                 for (int i = 2; i <= 20; i++)
                 {
-                    strUrl = string.Format("https://wsjkw.sh.gov.cn/xwfb/index_{0}.html", i.ToString());
+                    strUrl = PositiveArea_Homepage.Replace("index.html", string.Format("index_{0}.html", i.ToString()));
                     ScanNews(strUrl);
                 }
             }
             else
             {
-                strUrl = string.Format("https://wsjkw.sh.gov.cn/xwfb/index.html");
+                strUrl = string.Format(PositiveArea_Homepage);
                 ScanNews(strUrl);
             }
 
-
-            //Scan News
+            //Scan News info
             strSql = String.Format("select * from tNews t where Recorded=0 order by NewsID desc");
             DataSet ds = new DataSet();
             ds = sqlserver.ExecuteDataset(strSql);
@@ -73,37 +76,72 @@ namespace Covid_19_Sha2022
 
 
         /// <summary>
+        /// https://mp.weixin.qq.com/s/72SXJPIJmO0Go5ZOARuv6A
+        /// </summary>
+        /// <param name="strUrl"></param>
+        static void Scan3Zones(string strUrl)
+        {
+            string FilterKey = "三区";
+            string strHtml = httpHelper.ReturnGetHtml(strUrl, false, ref frmcookie, "", Wechat_Site, true);
+            List<String> lstLI = strHtml.Split(new string[] { "<a target='_blank'" }, StringSplitOptions.None).ToList();
+            string tempHref, tempTitle;
+
+            var query = from s in lstLI
+                .Where(s => (s.Contains(FilterKey)))
+                        select s;
+            foreach (var tempItem in query)
+            {
+                tempHref = HtmlHelper.GetMidString(tempItem, " href='", "'", false);
+                if (!tempHref.Contains("http"))
+                {
+                    tempHref = WSJKW_Site + tempHref;
+                }
+                tempTitle = HtmlHelper.GetMidString(tempItem, " textvalue='", "'", false);
+
+                if (tempTitle.Contains(FilterKey))
+                {
+                    strSql = String.Format("exec dbo.uspInsert3Zones N'{0}',N'{1}'", tempHref, tempTitle.Replace("'","''"));
+                    sqlserver.ExecuteNonQuery(strSql);
+                }
+            }
+        }
+
+        /// <summary>
         /// https://wsjkw.sh.gov.cn/xwfb/index_n.html
         /// </summary>
         /// <param name="strUrl"></param>
         static void ScanNews(string strUrl)
         {
-            string strHtml = httpHelper.ReturnGetHtml(strUrl, false, ref frmcookie, strReferer, strHost, true);
+            string FilterKey = "居住地信息";
+            string strHtml = httpHelper.ReturnGetHtml(strUrl, false, ref frmcookie, "", WSJKW_Site, true);
             List<String> lstLI = strHtml.Split(new string[] { "<li>" }, StringSplitOptions.None).ToList();
             List<String> lstNews = new List<string>();
             string tempHref, tempTitle;
 
             var query = from s in lstLI
-                .Where(s => (s.Contains("居住地信息")))
+                .Where(s => (s.Contains(FilterKey)))
                         select s;
-            foreach (var news in query)
+            foreach (var tempItem in query)
             {
-                tempHref = HtmlHelper.GetMidString(news, "<a href='", "'", false);
+                tempHref = HtmlHelper.GetMidString(tempItem, "<a href='", "'", false);
                 if (!tempHref.Contains("http"))
                 {
-                    tempHref = strHost + tempHref;
+                    tempHref = WSJKW_Site + tempHref;
                 }
-                tempTitle = HtmlHelper.GetMidString(news, " title='", "'", false);
+                tempTitle = HtmlHelper.GetMidString(tempItem, " title='", "'", false);
                 lstNews.Add(tempHref + "    " + tempTitle);
 
-                strSql = String.Format("exec dbo.uspInsertNews N'{0}',N'{1}'", tempHref, tempTitle);
-                sqlserver.ExecuteNonQuery(strSql);
+                if (tempTitle.Contains(FilterKey))
+                {
+                    strSql = String.Format("exec dbo.uspInsertNews N'{0}',N'{1}'", tempHref, tempTitle);
+                    sqlserver.ExecuteNonQuery(strSql);
+                }
             }
         }
 
         static void ScanNewsContent0319(string strUrl)
         {
-            string strHtml = httpHelper.ReturnGetHtml(strUrl, false, ref frmcookie, strReferer, strHost, true);
+            string strHtml = httpHelper.ReturnGetHtml(strUrl, false, ref frmcookie, "", WSJKW_Site, true);
             //use <strong> to split districts
             List<String> lstSTRONG = strHtml.Split(new string[] { "<strong" }, StringSplitOptions.None).ToList();
             List<String> lstStreet = new List<string>();
