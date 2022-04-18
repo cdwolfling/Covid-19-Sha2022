@@ -12,7 +12,7 @@ namespace Covid_19_Sha2022
     {
         static string Wechat_Site = "https://mp.weixin.qq.com/";
         static string WSJKW_Site = "https://wsjkw.sh.gov.cn";
-        static string PositiveArea_Homepage= "https://wsjkw.sh.gov.cn/xwfb/index.html";
+        static string PositiveArea_Homepage = "https://wsjkw.sh.gov.cn/xwfb/index.html";
 
         static HttpHelper httpHelper = new HttpHelper();
         static CookieContainer frmcookie = new CookieContainer();
@@ -26,33 +26,30 @@ namespace Covid_19_Sha2022
             IConfigurationBuilder builder = new ConfigurationBuilder().AddJsonFile("appsettings.json", false, true);
             IConfigurationRoot root = builder.Build();
             sqlserver.strSqlConn = root["SQLConn"];
-
-            string strUrl;
-
+            string strUrl = "";
             //strUrl = string.Format("https://mp.weixin.qq.com/s/72SXJPIJmO0Go5ZOARuv6A");
             //strUrl = string.Format("https://mp.weixin.qq.com/s/CVeBcXgkuPA8HKslTO3u5A");
             //Scan3Zones(strUrl);
             //return;
 
-            //Scan News
+            int iMaxPageID = 3;  //default: scan 3 pages
+            //If it's first run: scan 30 pages
             if (CheckIsFirstRun())
             {
-                strUrl = string.Format(PositiveArea_Homepage);
-                ScanNews(strUrl);
-                for (int i = 2; i <= 20; i++)
-                {
-                    strUrl = PositiveArea_Homepage.Replace("index.html", string.Format("index_{0}.html", i.ToString()));
-                    ScanNews(strUrl);
-                }
+                iMaxPageID = 10;
             }
-            else
+            //Scan news pages in reverse order
+            for (int i = iMaxPageID; i >= 1; i--)
             {
-                strUrl = string.Format(PositiveArea_Homepage);
+                if (i == 1)
+                    strUrl = string.Format(PositiveArea_Homepage);
+                else
+                    strUrl = PositiveArea_Homepage.Replace("index.html", string.Format("index_{0}.html", i.ToString()));
                 ScanNews(strUrl);
             }
 
             //Scan News info
-            strSql = String.Format("select * from tNews t where Recorded=0 order by NewsID desc");
+            strSql = String.Format("select * from tNews t where Recorded=0 order by NewsContentDate");
             DataSet ds = new DataSet();
             ds = sqlserver.ExecuteDataset(strSql);
             foreach (DataRow dr in ds.Tables[0].Rows)
@@ -71,7 +68,7 @@ namespace Covid_19_Sha2022
             strSql = String.Format("select * from tNews");
             DataSet ds = new DataSet();
             ds = sqlserver.ExecuteDataset(strSql);
-            if(ds.Tables[0].Rows.Count==0)
+            if (ds.Tables[0].Rows.Count == 0)
             {
                 return true;
             }
@@ -107,7 +104,7 @@ namespace Covid_19_Sha2022
 
                 if (tempTitle.Contains(FilterKey))
                 {
-                    strSql = String.Format("exec dbo.uspInsert3Zones N'{0}',N'{1}'", tempHref, tempTitle.Replace("'","''"));
+                    strSql = String.Format("exec dbo.uspInsert3Zones N'{0}',N'{1}'", tempHref, tempTitle.Replace("'", "''"));
                     sqlserver.ExecuteNonQuery(strSql);
                 }
             }
@@ -122,7 +119,7 @@ namespace Covid_19_Sha2022
             string FilterKey = "居住地信息";
             string strHtml = httpHelper.ReturnGetHtml(strUrl, false, ref frmcookie, "", WSJKW_Site, true);
             List<String> lstLI = strHtml.Split(new string[] { "<li>" }, StringSplitOptions.None).ToList();
-            List<String> lstNews = new List<string>();
+            List<News> lstNews = new List<News>();
             string tempHref, tempTitle;
 
             var query = from s in lstLI
@@ -136,13 +133,17 @@ namespace Covid_19_Sha2022
                     tempHref = WSJKW_Site + tempHref;
                 }
                 tempTitle = HtmlHelper.GetMidString(tempItem, " title='", "'", false);
-                lstNews.Add(tempHref + "    " + tempTitle);
-
                 if (tempTitle.Contains(FilterKey))
                 {
-                    strSql = String.Format("exec dbo.uspInsertNews N'{0}',N'{1}'", tempHref, tempTitle);
-                    sqlserver.ExecuteNonQuery(strSql);
+                    lstNews.Add(new News(tempHref, tempTitle));
                 }
+            }
+
+            //Insert news items in reverse order
+            for (int i = lstNews.Count-1; i >= 0; i--)
+            {
+                strSql = String.Format("exec dbo.uspInsertNews N'{0}',N'{1}'", lstNews[i].Href, lstNews[i].Title);
+                sqlserver.ExecuteNonQuery(strSql);
             }
         }
 
@@ -198,4 +199,16 @@ namespace Covid_19_Sha2022
         }
 
     }
+
+    class News
+    {
+        public string Href { get; set; }
+        public string Title { get; set; }
+        public News(string href, string title)
+        {
+            Href = href;
+            Title = title;
+        }
+    }
+
 }
